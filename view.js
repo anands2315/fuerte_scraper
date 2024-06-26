@@ -24,6 +24,7 @@ app.post('/scrape', async (req, res) => {
 
     try {
         const browser = await puppeteer.launch({
+            executablePath: puppeteer.executablePath(),
             headless: true,
             defaultViewport: null,
             protocolTimeout: 200000
