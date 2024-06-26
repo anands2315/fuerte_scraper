@@ -1,0 +1,47 @@
+const puppeteer = require("puppeteer");
+
+const scrapeInfiniteScrollItems = async (page, itemTargetCount) => {
+    let items = [];
+    let previousHeight;
+
+    while (items.length < itemTargetCount) {
+        items = await page.evaluate(() => {
+            // Select all product names and extract their text content
+            const productElements = document.querySelectorAll('.widget-product-card-details ');
+            const productNames = Array.from(productElements).map(el => el.textContent.trim());
+            return productNames;
+        });
+
+        previousHeight = await page.evaluate('document.body.scrollHeight');
+        await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
+
+        try {
+            await page.waitForFunction(`document.body.scrollHeight > ${previousHeight}`, { timeout: 10000 });
+        } catch (e) {
+            console.log('Timeout reached or no more content to load.');
+            break;
+        }
+
+        // Adjust the waiting time based on network speed and content load speed
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for 3 seconds
+    }
+
+    console.log(items);
+
+    return items.slice(0, itemTargetCount); // Return up to the specified number of items
+};
+
+(async () => {
+    const browser = await puppeteer.launch({
+        headless: false, // Change to true for production use
+    });
+
+    const page = await browser.newPage();
+    await page.goto("https://www.jiomart.com/sections/groceries?gad_source=1&gclid=CjwKCAjwps-zBhAiEiwALwsVYfeTy4LWZZKSU9m6oaSINgmEiD2nIAe5ZSgOB1EVFkiDOkmNEMZ27RoCsD0QAvD_BwE", { waitUntil: 'networkidle2' });
+
+    const items = await scrapeInfiniteScrollItems(page, 100); // Scrape up to 100 items
+
+    console.log(`Extracted ${items.length} product names`);
+    console.log(items); // Log all extracted product names
+    await browser.close();
+})();
